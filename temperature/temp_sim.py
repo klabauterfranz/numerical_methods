@@ -19,7 +19,6 @@ def timeit(method):
 def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, **parameters):
 	"""
 	Lösung der fourierischen Wärmeleitgleichung
-	ermittlung des Zeitpunktes bei Überschreitung einer bestimmten Temperatur an einer bestimmten Position
 	
 	:param position: (int) Beobachtungspunkt [pos] = m {Standardwert None}
 	:param limit: (float) Grenztemperatur [limit] = °C {Standardwert 45}
