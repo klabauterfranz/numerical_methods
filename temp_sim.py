@@ -1,6 +1,5 @@
 import numpy as np
 import time
-from numba import njit, prange
 import tqdm
 
 def timeit(method):
