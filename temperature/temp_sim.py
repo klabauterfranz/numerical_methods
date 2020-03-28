@@ -64,8 +64,8 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
 		t1 = np.resize(t1, t2.size) # Längenkorrektor
 		
 		last = t0[-1] + (t0[-2]-t0[-1]) * A - B * (t0[-1]-t0[-2]) # Endtemperatur
-		tnkp1 = t1 + (- 2*t1 + t0 + t2) * A - B * (t1-temp_boundary) # Einfügen von Anfangstemperatur und Endtemperatur
-		tnkp1 = np.append(np.insert(tnkp1, 0, temp_init), last)
+		tnkp1 = t1 + (- 2*t1 + t0 + t2) * A - B * (t1-temp_boundary) 
+		tnkp1 = np.append(np.insert(tnkp1, 0, temp_init), last) # Einfügen von Anfangstemperatur und Endtemperatur
 		temp_profile=np.vstack([temp_profile, tnkp1])
 	
 	#Speichern des Temperaturprofils als CSV
@@ -84,7 +84,7 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
 
 def find_time(temp_profile, limit, position, delta_t, delta_x, length):
 	"""
-	Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofils
+	Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofil
 	
 	:params temp_profile: (numpy.ndarray) Temperaturprofil Spalten = Positionen | Reihen = Zeitpunkte  [temp_profile] = °C
 	:params limit: (float)  Grenztemperatur [limit] = °C 
