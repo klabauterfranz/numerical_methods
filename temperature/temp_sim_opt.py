@@ -17,32 +17,9 @@ def timeit_dec(method):
         return result
     return timed
 
-
-    parameters = {
-        'c' : 888,
-        'rho' : 2700,
-        'lambda' : 237,
-        'alpha' : 8.000,
-        'radius' : 0.003,
-        'temp_boundary' : 22.00, 
-        'temp_init' : 300}
-
 @timeit_dec
-def temperatureprofile(
-                        position=None, 
-                        limit=45, 
-                        delta_x=0.01, 
-                        delta_t=0.1, 
-                        time=360.0, 
-                        length=0.4, 
-                        c = 888,
-                        rho = 2700, 
-                        lambda_ = 237, 
-                        alpha = 8.000, 
-                        radius = 0.003, 
-                        temp_boundary = 22.00, 
-                        temp_init = 300
-                        ):
+def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, 
+                        c, rho, lambda_, alpha, radius, temp_boundary, temp_init):
     """
     Lösung der fourierischen Wärmeleitgleichung
     
@@ -92,7 +69,6 @@ def temperatureprofile(
         blueprint[1:-1] = t1 + (- 2*t1 + t0 + t2) * A - B * (t1-temp_boundary) # Einfügen von Anfangstemperatur und Endtemperatur
         temp_profile[time+1] = blueprint
     
-   
     #Speichern des Temperaturprofils als CSV
     #np.savetxt("temp_profile.csv", temp_profile, delimiter=";")
     time = find_time(temp_profile=temp_profile, limit=limit, position=position, delta_t=delta_t, delta_x=delta_x, length=length)
@@ -129,10 +105,20 @@ def find_time(temp_profile, limit, position, delta_t, delta_x, length):
     
 if __name__=="__main__":
     # todo: testen ob direktübergabe schneller
+    parameters = {
+    'c' : 888,
+    'rho' : 2700,
+    'lambda_' : 237,
+    'alpha' : 8.000,
+    'radius' : 0.003,
+    'temp_boundary' : 22.00, 
+    'temp_init' : 300}
 
     #TESTS
     print("| Starte Kalkulation mit Parametern |")
-    temp_profile = temperatureprofile(c = 888,rho = 2700, lambda_ = 237, alpha = 8.000, radius = 0.003, temp_boundary = 22.00, temp_init = 300)
+    temp_profile = temperatureprofile(**parameters)
+    
+    
     # t = timeit.Timer(functools.partial(temperatureprofile)) 
     # print(t.timeit(10))
     #import timeit

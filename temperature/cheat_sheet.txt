@@ -1,1 +1,3 @@
-kernprof -l -v temp_sim_numba_new.py > temp_sim_numba_new.txt
+line-profiler
+PYTHONIOENCODING=UTF-8
+kernprof -l -v file.py 
