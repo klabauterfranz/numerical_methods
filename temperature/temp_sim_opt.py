@@ -1,9 +1,10 @@
 import numpy as np
-from numba import jit
+from numba import njit, prange, vectorize, jit
 import time
 import tqdm
+import timeit, functools
 
-def timeit(method):
+def timeit_dec(method):
     def timed(*args, **kw):
         ts = time.time()
         result = method(*args, **kw)
@@ -17,7 +18,31 @@ def timeit(method):
     return timed
 
 
-def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, **parameters):
+    parameters = {
+        'c' : 888,
+        'rho' : 2700,
+        'lambda' : 237,
+        'alpha' : 8.000,
+        'radius' : 0.003,
+        'temp_boundary' : 22.00, 
+        'temp_init' : 300}
+
+@timeit_dec
+def temperatureprofile(
+                        position=None, 
+                        limit=45, 
+                        delta_x=0.01, 
+                        delta_t=0.1, 
+                        time=360.0, 
+                        length=0.4, 
+                        c = 888,
+                        rho = 2700, 
+                        lambda_ = 237, 
+                        alpha = 8.000, 
+                        radius = 0.003, 
+                        temp_boundary = 22.00, 
+                        temp_init = 300
+                        ):
     """
     Lösung der fourierischen Wärmeleitgleichung
     
@@ -30,59 +55,50 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
     :param parameters: (Dictionary) die für die Berechnung relevanten Parameter
     """
     
-    par_c = parameters['c']
-    par_rho = parameters['rho']
-    par_lambda = parameters['lambda']
-    par_alpha = parameters['alpha']
-    par_r = parameters['radius']
-    par_a = par_lambda/par_c/par_rho
+    a = lambda_/c/rho
     
-    temp_boundary = parameters['temp_boundary']
-    temp_init = parameters['temp_init']
+    temp_boundary = temp_boundary
+    temp_init = temp_init
     
     # Stabilitätskriterium nach Krebs et al. 
     if delta_t != 0.1:
-        delta_x = (2*par_a*delta_t)**(1/2)
+        delta_x = (2*a*delta_t)**(1/2)
     if delta_x != 0.01:
-        delta_t = (delta_x**2/par_a)/2
+        delta_t = (delta_x**2/a)/2
     
     # Dimensionslose Parameter
-    A = par_lambda * delta_t / par_c / par_rho / delta_x**2
-    B = 2 * par_alpha * delta_t / par_c / par_rho / par_r
+    A = lambda_ * delta_t / c / rho / delta_x**2
+    B = 2 * alpha * delta_t / c / rho / radius
     
     # Anzahl der time und location steps
     time_steps = (int) (time/delta_t) + 1
     location_steps = (int) (length/delta_x) + 1
     
+    blueprint = np.empty([location_steps])
+    blueprint[0] = temp_init
+	
     # Anfangstemperaturprofil
-    temp_profile = np.asarray([np.insert(np.full(location_steps-1, temp_boundary), 0, temp_init)])
+    temp_profile = np.empty([time_steps+1, location_steps])
+    temp_profile[0] = np.append([temp_init], np.full(location_steps-1, temp_boundary))
     
     # der Listenversatz ermöglicht die Anwendung von np.ufunc's 
-    for time in tqdm.trange(time_steps):
-        t1 = np.delete(temp_profile[time], 0) #Listenversatz 1
-        t2 = np.delete(t1, 0) #Listenversatz 2
-        t0 = np.resize(temp_profile[time], t2.size) # Längenkorrektur
-        t1 = np.resize(t1, t2.size) # Längenkorrektur
+    for time in range(time_steps):
+        t1 = temp_profile[time][1:] #Listenversatz 1
+        t2 = t1[1:] #Listenversatz 2
+        t0 = temp_profile[time][:-2] # Längenkorrektur
+        t1 = t1[:-1] # Längenkorrektur
         
-        last = t0[-1] + (t0[-2]-t0[-1]) * A - B * (t0[-1]-t0[-2]) # Endtemperatur
-        tnkp1 = t1 + (- 2*t1 + t0 + t2) * A - B * (t1-temp_boundary) 
-        tnkp1 = np.append(np.insert(tnkp1, 0, temp_init), last) # Einfügen von Anfangstemperatur und Endtemperatur
-
-        temp_profile=np.vstack([temp_profile, tnkp1])
+        blueprint[-1] = t0[-1] + (t0[-2]-t0[-1]) * A - B * (t0[-1]-t0[-2]) # Endtemperatur
+        blueprint[1:-1] = t1 + (- 2*t1 + t0 + t2) * A - B * (t1-temp_boundary) # Einfügen von Anfangstemperatur und Endtemperatur
+        temp_profile[time+1] = blueprint
     
+   
     #Speichern des Temperaturprofils als CSV
     #np.savetxt("temp_profile.csv", temp_profile, delimiter=";")
-        
-    time = find_time(
-        temp_profile=temp_profile,
-        limit=limit,
-        position=position, 
-        delta_t=delta_t, 
-        delta_x=delta_x, 
-        length=length)
-        
+    time = find_time(temp_profile=temp_profile, limit=limit, position=position, delta_t=delta_t, delta_x=delta_x, length=length)
+    
     #print(temp_profile)
-        
+    
     return temp_profile
 
 def find_time(temp_profile, limit, position, delta_t, delta_x, length):
@@ -96,13 +112,12 @@ def find_time(temp_profile, limit, position, delta_t, delta_x, length):
     :params delta_x: (float) Schritte für die Ortsdiskretisierung [Δx] = m
     :params length: (float) Länge des Stabes [l] = m
     """
-
+    
     temp_profile_T = np.transpose(temp_profile)
-    time_cum_sum = np.insert(np.cumsum(np.full(len(temp_profile_T[0])-1, delta_t)),0,0) # cumsum deltat
+    time_cum_sum = np.append([0],np.cumsum(np.full(temp_profile_T[0].size-1, delta_t))) # cumsum deltat
     time_gt = [np.interp(limit, temp_profile_T[i], time_cum_sum) for i in range(len(temp_profile_T))] # Linear Interpolierte Zeit
     
     if position is not None:
-        #location_cumsum = np.insert(np.cumsum(np.full(len(temp_profile[0])-1, delta_x)),0,0)
         location_cumsum =  np.resize(np.arange(0.005, length+delta_x, delta_x),len(time_gt))
         print(len(location_cumsum))
         time = np.interp(position, location_cumsum, time_gt)
@@ -114,19 +129,15 @@ def find_time(temp_profile, limit, position, delta_t, delta_x, length):
     
 if __name__=="__main__":
     # todo: testen ob direktübergabe schneller
-    parameters = {
-        'c' : 888,
-        'rho' : 2700,
-        'lambda' : 237,
-        'alpha' : 8.000,
-        'radius' : 0.003,
-        'temp_boundary' : 22.00, 
-        'temp_init' : 300}
-    
+
     #TESTS
     print("| Starte Kalkulation mit Parametern |")
-    temp_profile = temperatureprofile(**parameters)
-    
+    temp_profile = temperatureprofile(c = 888,rho = 2700, lambda_ = 237, alpha = 8.000, radius = 0.003, temp_boundary = 22.00, temp_init = 300)
+    # t = timeit.Timer(functools.partial(temperatureprofile)) 
+    # print(t.timeit(10))
+    #import timeit
+    #t = timeit.Timer(temperatureprofile(c = 888,rho = 2700, lambda_ = 237, alpha = 8.000, radius = 0.003, temp_boundary = 22.00, temp_init = 300))  
+    #print(t.timeit(5))
     #temperatureprofile(delta_x=0.1,**parameters)
     #temperatureprofile(delta_t=1,**parameters)
 
