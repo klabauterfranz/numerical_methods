@@ -3,20 +3,16 @@ from numba import jit
 import time
 import tqdm
 
-def timeit(method):
+def timeit_dec(method):
     def timed(*args, **kw):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
-        else:
-            print('{} - {} ms - DONE'.format(method.__name__, (te - ts) * 1000))
+        print('{} - {} ms - DONE'.format(method.__name__, (te - ts) * 1000))
         return result
     return timed
 
-
+@timeit_dec
 def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, **parameters):
     """
     Lösung der fourierischen Wärmeleitgleichung

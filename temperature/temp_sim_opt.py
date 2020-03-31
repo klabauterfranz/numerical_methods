@@ -9,27 +9,28 @@ def timeit_dec(method):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
-        else:
-            print('{} - {} ms - DONE'.format(method.__name__, (te - ts) * 1000))
+        print('{} - {} ms - DONE'.format(method.__name__, (te - ts) * 1000))
         return result
     return timed
 
 @timeit_dec
-def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, 
-                        c, rho, lambda_, alpha, radius, temp_boundary, temp_init):
+def temperatureprofile(c, rho, lambda_, alpha, radius, temp_boundary, temp_init, length,
+                        position=None, delta_x=0.01, delta_t=0.1, time=360.0):
     """
     Lösung der fourierischen Wärmeleitgleichung
     
+    :param parameters: (float) spezifische Wärmekapazität [c] = J/kgK
+    :param parameters: (float) Dichte [ρ] = kg/m3
+    :param parameters: (float) Wärmeleitfähigkeit [λ] = W/mK
+    :param parameters: (float) Wärmeübergangskoeffizient [α] = W/m2K
+    :param parameters: (float) Radius [r] = m
+    :param parameters: (float) Umgebungstemperature (Randbedingung) [Tboundry] = °C
+    :param parameters: (float) Angangstemperatur (Anfangsbedingung) [Tinit] = °C
+    :param length: (float) Länge des Stabes [l] = m
     :param position: (int) Beobachtungspunkt [pos] = m {Standardwert None}
-    :param limit: (float) Grenztemperatur [limit] = °C {Standardwert 45}
     :param delta_x: (float) Schritte für die Ortsdiskretisierung [Δx] = m {Standardwert 0.01}
     :param delta_t: (float) Schritte für die Zeitdiskretisierung [Δt] = s {Standardwert 0.01}
     :param time: (float) Dauer der Simulation [t] = s {Standardwert 0.01}
-    :param length: (float) Länge des Stabes [l] = m {Standardwert 0.4}
-    :param parameters: (Dictionary) die für die Berechnung relevanten Parameter
     """
     
     a = lambda_/c/rho
@@ -52,14 +53,19 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
     location_steps = (int) (length/delta_x) + 1
     
     blueprint = np.empty([location_steps])
-    blueprint[0] = temp_init
-	
+    
+    if isinstance(temp_init, float) or isinstance(temp_init, int):
+        blueprint[0] = temp_init
+        blueprint[1:] = np.full(location_steps-1, temp_boundary)
+    else: 
+        blueprint = temp_init
+        
     # Anfangstemperaturprofil
     temp_profile = np.empty([time_steps+1, location_steps])
-    temp_profile[0] = np.append([temp_init], np.full(location_steps-1, temp_boundary))
+    temp_profile[0] = blueprint
     
     # der Listenversatz ermöglicht die Anwendung von np.ufunc's 
-    for time in range(time_steps):
+    for time in tqdm.trange(time_steps):
         t1 = temp_profile[time][1:] #Listenversatz 1
         t2 = t1[1:] #Listenversatz 2
         t0 = temp_profile[time][:-2] # Längenkorrektur
@@ -71,17 +77,17 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
     
     #Speichern des Temperaturprofils als CSV
     #np.savetxt("temp_profile.csv", temp_profile, delimiter=";")
-    time = find_time(temp_profile=temp_profile, limit=limit, position=position, delta_t=delta_t, delta_x=delta_x, length=length)
     
-    #print(temp_profile)
+    # time = find_time(temp_profile=temp_profile, position=position, delta_t=delta_t, delta_x=delta_x, length=length)
     
     return temp_profile
 
-def find_time(temp_profile, limit, position, delta_t, delta_x, length):
+def find_time(temp_profile, limit=45, position, delta_t, delta_x, length):
     """
     Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofil
     
     :params temp_profile: (numpy.ndarray) Temperaturprofil Spalten = Positionen | Reihen = Zeitpunkte  [temp_profile] = °C
+    :param limit: (float) Grenztemperatur [limit] = °C {Standardwert 45}
     :params limit: (float)  Grenztemperatur [limit] = °C 
     :params position: (float) Beobachtungspunkt [position] = m   
     :params delta_t: (float) Schritte für die Zeitdiskretisierung [Δt] = s
@@ -95,9 +101,18 @@ def find_time(temp_profile, limit, position, delta_t, delta_x, length):
     
     if position is not None:
         location_cumsum =  np.resize(np.arange(0.005, length+delta_x, delta_x),len(time_gt))
-        print(len(location_cumsum))
+        index = int(position/delta_x)
+        if position/delta_x%1 != 0 :
+            x0 = index*delta_x
+            x1 = (index+1)*delta_x
+            f0 = temp_profile_T[index]
+            f1 = temp_profile_T[index+1]
+            temp_profile_pos = f0+(f1-f0)/(x1-x0)*(position-x0)
+        else:
+            temp_profile_pos = temp_profile_T[index]
         time = np.interp(position, location_cumsum, time_gt)
-        print("An der Position 0.075 m wird die Grenztemperatur nach {} s erreicht".format(round(time,3)))
+        print("Temperaturprofil an der Position {}: {}".format(position, temp_profile_pos))
+        print("An der Position {} m wird die Grenztemperatur nach {} s erreicht".format(position,round(time,3)))
         return time
     else:
         print("Zeitliste: {}".format(time_gt))
@@ -112,12 +127,18 @@ if __name__=="__main__":
     'alpha' : 8.000,
     'radius' : 0.003,
     'temp_boundary' : 22.00, 
-    'temp_init' : 300}
-
+    'length' : 0.4}
+    
     #TESTS
     print("| Starte Kalkulation mit Parametern |")
-    temp_profile = temperatureprofile(**parameters)
+    #temp_profile = temperatureprofile(**parameters)
+    layer1 = temperatureprofile(temp_init = 300, **parameters)
+    layer2 = temperatureprofile(temp_init = layer1[-1], **parameters)
     
+    print(layer1)
+    print(layer2)
+    #temperatureprofile(position = 0.075,,  **parameters)
+    #temperatureprofile(position = 0.4, **parameters)
     
     # t = timeit.Timer(functools.partial(temperatureprofile)) 
     # print(t.timeit(10))
