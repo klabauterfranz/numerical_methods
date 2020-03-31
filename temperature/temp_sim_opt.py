@@ -82,7 +82,7 @@ def temperatureprofile(c, rho, lambda_, alpha, radius, temp_boundary, temp_init,
     
     return temp_profile
 
-def find_time(temp_profile, limit=45, position, delta_t, delta_x, length):
+def find_time(temp_profile, position, delta_t, delta_x, length, limit=45):
     """
     Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofil
     
