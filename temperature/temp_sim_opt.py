@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, prange, vectorize, jit
+#from numba import njit, prange, vectorize, jit
 import time
 import tqdm
 import timeit, functools

@@ -67,7 +67,7 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
         temp_profile=np.vstack([temp_profile, tnkp1])
     
     #Speichern des Temperaturprofils als CSV
-    #np.savetxt("temp_profile.csv", temp_profile, delimiter=";")
+    np.savetxt("temp_profile.csv", temp_profile, delimiter=";")
         
     time = find_time(
         temp_profile=temp_profile,
@@ -115,14 +115,14 @@ if __name__=="__main__":
         'rho' : 2700,
         'lambda' : 237,
         'alpha' : 8.000,
-        'radius' : 0.003,
+        'radius' : 0.0025,
         'temp_boundary' : 22.00, 
         'temp_init' : 300}
     
     #TESTS
     print("| Starte Kalkulation mit Parametern |")
     temp_profile = temperatureprofile(**parameters)
-    
+    print(temp_profile)
     #temperatureprofile(delta_x=0.1,**parameters)
     #temperatureprofile(delta_t=1,**parameters)
 
