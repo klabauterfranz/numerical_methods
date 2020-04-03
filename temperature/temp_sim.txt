@@ -1,0 +1,127 @@
+| Starte Kalkulation mit Parametern |
+Zeitliste: [0.0, 0.08369729532829435, 0.5814283574086364, 1.4255554499940633, 2.6080280480763114, 4.131296820887843, 5.998925360242902, 8.215032764047303, 10.784434062322726, 13.712742991960923, 17.006439343149495, 20.672948618395232, 24.720702195742486, 29.159245657398113, 33.99931494527017, 39.252989019157226, 44.93377236244695, 51.056804447251345, 57.63901223873817, 64.69928804616977, 72.25851202238282, 80.3388158910076, 88.96111001537713, 98.1390198090608, 107.86791345025892, 118.10947311965894, 128.77587981743173, 139.72098314958018, 150.74542491436574, 161.61631624675843, 172.0941593052203, 181.95662810842654, 191.01280403076498, 199.10759818619252, 206.1196526373764, 211.9564700892428, 216.5492487029378, 219.84859012887017, 221.82139047051137, 222.4488389296624, 221.72531353303307]
+[[300.          22.          22.         ...  22.          22.
+   22.        ]
+ [300.          49.47997998  22.         ...  22.          22.
+   22.        ]
+ [300.          71.51989586  24.71636439 ...  22.          22.
+   22.        ]
+ ...
+ [300.         285.24426073 271.20480348 ...  65.97013404  65.86215492
+   65.99263496]
+ [300.         285.24479565 271.20587188 ...  65.98198875  65.87401805
+   66.004492  ]
+ [300.         285.24533028 271.20693971 ...  65.99383886  65.88587658
+   66.01634443]]
+Wrote profile results to temp_sim.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 1.36021 s
+File: temp_sim.py
+Function: temperatureprofile at line 14
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    14                                           @profile
+    15                                           def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, **parameters):
+    16                                               """
+    17                                               Lösung der fourierischen Wärmeleitgleichung
+    18                                               
+    19                                               :param position: (int) Beobachtungspunkt [pos] = m {Standardwert None}
+    20                                               :param limit: (float) Grenztemperatur [limit] = °C {Standardwert 45}
+    21                                               :param delta_x: (float) Schritte für die Ortsdiskretisierung [Δx] = m {Standardwert 0.01}
+    22                                               :param delta_t: (float) Schritte für die Zeitdiskretisierung [Δt] = s {Standardwert 0.01}
+    23                                               :param time: (float) Dauer der Simulation [t] = s {Standardwert 0.01}
+    24                                               :param length: (float) Länge des Stabes [l] = m {Standardwert 0.4}
+    25                                               :param parameters: (Dictionary) die für die Berechnung relevanten Parameter
+    26                                               """
+    27                                               
+    28         1          2.0      2.0      0.0      par_c = parameters['c']
+    29         1          1.0      1.0      0.0      par_rho = parameters['rho']
+    30         1          1.0      1.0      0.0      par_lambda = parameters['lambda']
+    31         1          0.0      0.0      0.0      par_alpha = parameters['alpha']
+    32         1          1.0      1.0      0.0      par_r = parameters['radius']
+    33         1          1.0      1.0      0.0      par_a = par_lambda/par_c/par_rho
+    34                                               
+    35         1          0.0      0.0      0.0      temp_boundary = parameters['temp_boundary']
+    36         1          1.0      1.0      0.0      temp_init = parameters['temp_init']
+    37                                               
+    38                                               # Stabilitätskriterium nach Krebs et al. 
+    39         1          1.0      1.0      0.0      if delta_t != 0.1:
+    40                                                   delta_x = (2*par_a*delta_t)**(1/2)
+    41         1          0.0      0.0      0.0      if delta_x != 0.01:
+    42                                                   delta_t = (delta_x**2/par_a)/2
+    43                                               
+    44                                               # Dimensionslose Parameter
+    45         1          3.0      3.0      0.0      A = par_lambda * delta_t / par_c / par_rho / delta_x**2
+    46         1          1.0      1.0      0.0      B = 2 * par_alpha * delta_t / par_c / par_rho / par_r
+    47                                               
+    48                                               # Anzahl der time und location steps
+    49         1          1.0      1.0      0.0      time_steps = (int) (time/delta_t) + 1
+    50         1          1.0      1.0      0.0      location_steps = (int) (length/delta_x) + 1
+    51                                               
+    52                                               # Anfangstemperaturprofil
+    53         1        109.0    109.0      0.0      temp_profile = np.asarray([np.insert(np.full(location_steps-1, temp_boundary), 0, temp_init)])
+    54                                               
+    55                                               # der Listenversatz ermöglicht die Anwendung von np.ufunc's 
+    56      3602      25460.0      7.1      1.9      for time in tqdm.trange(time_steps):
+    57      3601     104777.0     29.1      7.7          t1 = np.delete(temp_profile[time], 0) #Listenversatz 1
+    58      3601      83771.0     23.3      6.2          t2 = np.delete(t1, 0) #Listenversatz 2
+    59      3601     148467.0     41.2     10.9          t0 = np.resize(temp_profile[time], t2.size) # Längenkorrektur
+    60      3601      80439.0     22.3      5.9          t1 = np.resize(t1, t2.size) # Längenkorrektur
+    61                                                   
+    62      3601      11523.0      3.2      0.8          last = t0[-1] + (t0[-2]-t0[-1]) * A - B * (t0[-1]-t0[-2]) # Endtemperatur
+    63      3601      37051.0     10.3      2.7          tnkp1 = t1 + (- 2*t1 + t0 + t2) * A - B * (t1-temp_boundary) 
+    64      3601     230744.0     64.1     17.0          tnkp1 = np.append(np.insert(tnkp1, 0, temp_init), last) # Einfügen von Anfangstemperatur und Endtemperatur
+    65                                           
+    66      3601     504606.0    140.1     37.1          temp_profile=np.vstack([temp_profile, tnkp1])
+    67                                               
+    68                                               #Speichern des Temperaturprofils als CSV
+    69         1     131968.0 131968.0      9.7      np.savetxt("temp_profile.csv", temp_profile, delimiter=";")
+    70                                                   
+    71         2       1273.0    636.5      0.1      time = find_time(
+    72         1          1.0      1.0      0.0          temp_profile=temp_profile,
+    73         1          1.0      1.0      0.0          limit=limit,
+    74         1          1.0      1.0      0.0          position=position, 
+    75         1          1.0      1.0      0.0          delta_t=delta_t, 
+    76         1          1.0      1.0      0.0          delta_x=delta_x, 
+    77         1          1.0      1.0      0.0          length=length)
+    78                                                   
+    79                                               #print(temp_profile)
+    80                                                   
+    81         1          1.0      1.0      0.0      return temp_profile
+
+Total time: 0.001248 s
+File: temp_sim.py
+Function: find_time at line 83
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    83                                           @profile
+    84                                           def find_time(temp_profile, limit, position, delta_t, delta_x, length):
+    85                                               """
+    86                                               Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofil
+    87                                               
+    88                                               :params temp_profile: (numpy.ndarray) Temperaturprofil Spalten = Positionen | Reihen = Zeitpunkte  [temp_profile] = °C
+    89                                               :params limit: (float)  Grenztemperatur [limit] = °C 
+    90                                               :params position: (float) Beobachtungspunkt [position] = m   
+    91                                               :params delta_t: (float) Schritte für die Zeitdiskretisierung [Δt] = s
+    92                                               :params delta_x: (float) Schritte für die Ortsdiskretisierung [Δx] = m
+    93                                               :params length: (float) Länge des Stabes [l] = m
+    94                                               """
+    95                                           
+    96         1         20.0     20.0      1.6      temp_profile_T = np.transpose(temp_profile)
+    97         1        433.0    433.0     34.7      time_cum_sum = np.insert(np.cumsum(np.full(len(temp_profile_T[0])-1, delta_t)),0,0) # cumsum deltat
+    98         1        754.0    754.0     60.4      time_gt = [np.interp(limit, temp_profile_T[i], time_cum_sum) for i in range(len(temp_profile_T))] # Linear Interpolierte Zeit
+    99                                               
+   100         1          1.0      1.0      0.1      if position is not None:
+   101                                                   #location_cumsum = np.insert(np.cumsum(np.full(len(temp_profile[0])-1, delta_x)),0,0)
+   102                                                   location_cumsum =  np.resize(np.arange(0.005, length+delta_x, delta_x),len(time_gt))
+   103                                                   print(len(location_cumsum))
+   104                                                   time = np.interp(position, location_cumsum, time_gt)
+   105                                                   print("An der Position 0.075 m wird die Grenztemperatur nach {} s erreicht".format(round(time,3)))
+   106                                                   return time
+   107                                               else:
+   108         1         39.0     39.0      3.1          print("Zeitliste: {}".format(time_gt))
+   109         1          1.0      1.0      0.1          return time_gt
+

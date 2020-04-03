@@ -1,5 +1,4 @@
 import numpy as np
-from numba import jit
 import time
 import tqdm
 
@@ -12,7 +11,7 @@ def timeit_dec(method):
         return result
     return timed
 
-@timeit_dec
+@profile
 def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=360.0, length=0.4, **parameters):
     """
     Lösung der fourierischen Wärmeleitgleichung
@@ -81,6 +80,7 @@ def temperatureprofile(position=None, limit=45, delta_x=0.01, delta_t=0.1, time=
         
     return temp_profile
 
+@profile
 def find_time(temp_profile, limit, position, delta_t, delta_x, length):
     """
     Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofil

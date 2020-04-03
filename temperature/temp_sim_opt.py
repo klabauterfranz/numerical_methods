@@ -13,7 +13,7 @@ def timeit_dec(method):
         return result
     return timed
 
-@timeit_dec
+@profile
 def temperatureprofile(c, rho, lambda_, alpha, radius, temp_boundary, temp_init, length,
                         position=None, delta_x=0.01, delta_t=0.1, time=360.0):
     """
@@ -82,6 +82,7 @@ def temperatureprofile(c, rho, lambda_, alpha, radius, temp_boundary, temp_init,
     
     return temp_profile
 
+@profile
 def find_time(temp_profile, position, delta_t, delta_x, length, limit=45):
     """
     Ermittelt an jeder Stelle den Zeitpunkt der Grenztemperatur aus dem Temperaturprofil
@@ -134,9 +135,7 @@ if __name__=="__main__":
     #temp_profile = temperatureprofile(**parameters)
     layer1 = temperatureprofile(temp_init = 300, **parameters)
     layer2 = temperatureprofile(temp_init = layer1[-1], **parameters)
-    
-    print(layer1)
-    print(layer2)
+
     #temperatureprofile(position = 0.075,,  **parameters)
     #temperatureprofile(position = 0.4, **parameters)
     
